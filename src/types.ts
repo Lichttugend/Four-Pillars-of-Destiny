@@ -1,39 +1,37 @@
-export type Category =
-  | 'leseverstehen'
-  | 'lueckentext'
-  | 'grammatik'
-  | 'wortschatz'
-  | 'rechtschreibung'
-  | 'mocktest';
-
-export interface Question {
-  id: string;
-  category: Exclude<Category, 'mocktest'>;
-  question: string;
+export interface Blank {
+  id: number;
+  correctAnswer: string;
   options: string[];
-  correctIndex: number;
   explanation: string;
-  text?: string; // For reading comprehension passages
 }
 
-export interface CategoryScore {
-  category: Exclude<Category, 'mocktest'>;
-  correct: number;
+export interface GermanText {
+  id: number;
+  title: string;
+  topic: string;
+  level: 'B1' | 'B2' | 'C1';
+  timeLimit: number; // seconds
+  text: string; // [1] through [10] as placeholders
+  blanks: Blank[];
+}
+
+export interface TextScore {
+  textId: number;
+  score: number;
   total: number;
-  lastPlayed: string;
+  date: string;
 }
 
-export interface AppState {
-  screen: 'home' | 'exercise' | 'mocktest' | 'result';
-  currentCategory: Category | null;
-  questions: Question[];
-  currentIndex: number;
-  answers: (number | null)[];
-  startTime: number | null;
-  isMockTest: boolean;
+export interface MockTestResult {
+  scores: TextScore[];
+  total: number;
+  max: number;
+  date: string;
 }
 
-export interface ScoreHistory {
-  scores: CategoryScore[];
-  mockTestScores: { score: number; total: number; date: string }[];
-}
+export type Screen =
+  | { name: 'home' }
+  | { name: 'exercise'; textId: number }
+  | { name: 'result'; textId: number; answers: Record<number, string>; timeUp: boolean }
+  | { name: 'mocktest' }
+  | { name: 'mockresult'; result: MockTestResult };

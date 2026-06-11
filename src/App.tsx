@@ -1,96 +1,73 @@
-import { useState, useEffect } from 'react';
-import { Category, Question, ScoreHistory } from './types';
+import { useState } from 'react';
+import { Screen, TextScore, MockTestResult } from './types';
+import { germanTexts } from './data/texts';
 import Home from './components/Home';
-import Exercise from './components/Exercise';
+import TextExercise from './components/TextExercise';
+import ResultScreen from './components/ResultScreen';
 import MockTest from './components/MockTest';
-import { leseVerstehenQuestions } from './data/leseverstehen';
-import { lueckentextQuestions } from './data/lueckentext';
-import { grammatikQuestions } from './data/grammatik';
-import { wortschatzQuestions } from './data/wortschatz';
-import { rechtschreibungQuestions } from './data/rechtschreibung';
+import MockResult from './components/MockResult';
 
-const ALL_QUESTIONS: Question[] = [
-  ...leseVerstehenQuestions,
-  ...lueckentextQuestions,
-  ...grammatikQuestions,
-  ...wortschatzQuestions,
-  ...rechtschreibungQuestions,
-];
-
-const CATEGORY_QUESTIONS: Record<Exclude<Category, 'mocktest'>, Question[]> = {
-  leseverstehen: leseVerstehenQuestions,
-  lueckentext: lueckentextQuestions,
-  grammatik: grammatikQuestions,
-  wortschatz: wortschatzQuestions,
-  rechtschreibung: rechtschreibungQuestions,
-};
-
-const CATEGORY_LABELS: Record<Exclude<Category, 'mocktest'>, string> = {
-  leseverstehen: '📖 Leseverstehen',
-  lueckentext: '✏️ Lückentext',
-  grammatik: '📝 Grammatik',
-  wortschatz: '📚 Wortschatz',
-  rechtschreibung: '🔤 Rechtschreibung',
-};
-
-function shuffle<T>(arr: T[]): T[] {
-  return [...arr].sort(() => Math.random() - 0.5);
-}
-
-function loadScores(): ScoreHistory {
+function loadScores(): TextScore[] {
   try {
-    const raw = localStorage.getItem('bps-scores');
+    const raw = localStorage.getItem('bps-text-scores');
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { scores: [], mockTestScores: [] };
+  return [];
 }
 
-function saveScores(h: ScoreHistory) {
-  try { localStorage.setItem('bps-scores', JSON.stringify(h)); } catch {}
+function saveScore(score: TextScore) {
+  const scores = loadScores();
+  const existing = scores.findIndex(s => s.textId === score.textId);
+  if (existing >= 0) {
+    if (score.score > scores[existing].score) scores[existing] = score;
+  } else {
+    scores.push(score);
+  }
+  try { localStorage.setItem('bps-text-scores', JSON.stringify(scores)); } catch {}
 }
-
-type Screen = 'home' | 'exercise' | 'mocktest';
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>('home');
-  const [activeCategory, setActiveCategory] = useState<Category | null>(null);
-  const [exerciseQuestions, setExerciseQuestions] = useState<Question[]>([]);
-  const [scores, _setScores] = useState<ScoreHistory>(loadScores);
+  const [screen, setScreen] = useState<Screen>({ name: 'home' });
+  const [scores, setScores] = useState<TextScore[]>(loadScores);
 
-  useEffect(() => { saveScores(scores); }, [scores]);
-
-  const handleStart = (cat: Category) => {
-    setActiveCategory(cat);
-    if (cat === 'mocktest') {
-      const mock = shuffle(ALL_QUESTIONS).slice(0, 30);
-      setExerciseQuestions(mock);
-      setScreen('mocktest');
-    } else {
-      const qs = shuffle(CATEGORY_QUESTIONS[cat]).slice(0, 10);
-      setExerciseQuestions(qs);
-      setScreen('exercise');
-    }
+  const handleStart = (textId: number) => {
+    setScreen({ name: 'exercise', textId });
   };
 
-  const handleHome = () => {
-    setScreen('home');
-    setActiveCategory(null);
-    setExerciseQuestions([]);
+  const handleSubmit = (textId: number, answers: Record<number, string>, timeUp: boolean) => {
+    const text = germanTexts.find(t => t.id === textId)!;
+    const score = text.blanks.filter(b => answers[b.id] === b.correctAnswer).length;
+    const newScore: TextScore = { textId, score, total: text.blanks.length, date: new Date().toISOString() };
+    saveScore(newScore);
+    setScores(loadScores());
+    setScreen({ name: 'result', textId, answers, timeUp });
   };
 
-  if (screen === 'exercise' && activeCategory && activeCategory !== 'mocktest') {
-    return (
-      <Exercise
-        questions={exerciseQuestions}
-        categoryLabel={CATEGORY_LABELS[activeCategory]}
-        onHome={handleHome}
-      />
-    );
+  const handleMockDone = (result: MockTestResult) => {
+    result.scores.forEach(s => saveScore(s));
+    setScores(loadScores());
+    setScreen({ name: 'mockresult', result });
+  };
+
+  const goHome = () => setScreen({ name: 'home' });
+
+  if (screen.name === 'exercise') {
+    const text = germanTexts.find(t => t.id === screen.textId)!;
+    return <TextExercise text={text} onSubmit={(a, t) => handleSubmit(screen.textId, a, t)} onHome={goHome} />;
   }
 
-  if (screen === 'mocktest') {
-    return <MockTest questions={exerciseQuestions} onHome={handleHome} />;
+  if (screen.name === 'result') {
+    const text = germanTexts.find(t => t.id === screen.textId)!;
+    return <ResultScreen text={text} answers={screen.answers} timeUp={screen.timeUp} onHome={goHome} onRetry={() => handleStart(screen.textId)} />;
   }
 
-  return <Home scores={scores} onStart={handleStart} />;
+  if (screen.name === 'mocktest') {
+    return <MockTest texts={germanTexts} onDone={handleMockDone} onHome={goHome} />;
+  }
+
+  if (screen.name === 'mockresult') {
+    return <MockResult result={screen.result} texts={germanTexts} onHome={goHome} />;
+  }
+
+  return <Home texts={germanTexts} scores={scores} onStart={handleStart} onMockTest={() => setScreen({ name: 'mocktest' })} />;
 }
