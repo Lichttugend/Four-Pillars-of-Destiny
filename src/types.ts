@@ -1,37 +1,25 @@
-export interface Blank {
-  id: number;
-  correctAnswer: string;
-  options: string[];
-  explanation: string;
-}
-
-export interface GermanText {
-  id: number;
-  title: string;
-  topic: string;
-  level: 'B1' | 'B2' | 'C1';
-  timeLimit: number; // seconds
-  text: string; // [1] through [10] as placeholders
-  blanks: Blank[];
-}
-
-export interface TextScore {
-  textId: number;
-  score: number;
-  total: number;
+export interface BirthData {
+  name: string;
   date: string;
+  hour: number;
+  location: string;
+  language: 'en' | 'de';
 }
 
-export interface MockTestResult {
-  scores: TextScore[];
-  total: number;
-  max: number;
-  date: string;
+export interface Pillar {
+  stem: string;
+  branch: string;
+  stemName: string;
+  branchName: string;
+  element: string;
+  yinYang: 'Yin' | 'Yang';
 }
 
-export type Screen =
-  | { name: 'home' }
-  | { name: 'exercise'; textId: number }
-  | { name: 'result'; textId: number; answers: Record<number, string>; timeUp: boolean }
-  | { name: 'mocktest' }
-  | { name: 'mockresult'; result: MockTestResult };
+export interface BaziChart {
+  year: Pillar;
+  month: Pillar;
+  day: Pillar;
+  hour: Pillar;
+  dayMaster: string;
+  dayMasterElement: string;
+}
